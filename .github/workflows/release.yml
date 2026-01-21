@@ -35,7 +35,7 @@ jobs:
           path: dicom-anonymizer-linux-amd64.tar.xz
 
   build-macos-intel:
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
@@ -44,7 +44,10 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build
+      - name: Build for Intel
+        env:
+          GOARCH: amd64
+          CGO_ENABLED: 1
         run: go build -ldflags="-s -w" -o dicom-anonymizer ./cmd/anonymizer
 
       - name: Package
