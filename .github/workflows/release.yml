@@ -1,0 +1,87 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+          - os: macos-latest
+            platform: darwin
+            arch: amd64
+          - os: macos-14
+            platform: darwin
+            arch: arm64
+          - os: windows-latest
+            platform: windows
+            arch: amd64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev xorg-dev
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.platform }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          go build -ldflags="-s -w" -o dicom-anonymizer${{ matrix.platform == 'windows' && '.exe' || '' }} ./cmd/anonymizer
+
+      - name: Package (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          if [ "${{ matrix.platform }}" = "darwin" ]; then
+            zip dicom-anonymizer-macos-${{ matrix.arch }}.zip dicom-anonymizer
+          else
+            tar -cJf dicom-anonymizer-linux-${{ matrix.arch }}.tar.xz dicom-anonymizer
+          fi
+
+      - name: Package (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          Compress-Archive -Path dicom-anonymizer.exe -DestinationPath dicom-anonymizer-windows-${{ matrix.arch }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dicom-anonymizer-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dicom-anonymizer-*.*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

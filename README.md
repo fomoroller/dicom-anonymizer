@@ -1,26 +1,48 @@
 # DICOM Anonymizer
 
-A cross-platform GUI application for anonymizing DICOM medical imaging files. Built with Go and Fyne.
+A cross-platform tool for anonymizing DICOM medical imaging files. Supports both **GUI** and **CLI** modes.
+
+<p align="center">
+  <img src="docs/screenshot.png" alt="DICOM Anonymizer Screenshot" width="600">
+</p>
+
+## Table of Contents
+
+- [Features](#features)
+- [Downloads](#downloads)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [GUI Mode](#gui-mode-default)
+  - [CLI Mode](#cli-mode)
+- [Anonymization Details](#anonymization-details)
+- [Building from Source](#building-from-source)
+
+---
 
 ## Features
 
-- **Metadata Anonymization**: Removes or modifies patient identifying information from DICOM tags
-- **Pixel Redaction**: Blacks out burned-in PHI from ultrasound images (configurable rows)
-- **Patient Pseudonymization**: Generates consistent anonymous IDs using a secret key
-- **Multi-modality Support**: CT, MRI, X-Ray, and Ultrasound
-- **Progress Tracking**: Resume interrupted anonymization runs
-- **Cross-platform**: macOS (ARM64 & Intel), Windows, and Linux
+| Feature | Description |
+|---------|-------------|
+| **Metadata Anonymization** | Removes patient identifying information from DICOM tags |
+| **Pixel Redaction** | Blacks out burned-in PHI from ultrasound images |
+| **Patient Pseudonymization** | Generates consistent anonymous IDs using a secret key |
+| **Multi-modality Support** | CT, MRI, X-Ray, and Ultrasound |
+| **Progress Tracking** | Resume interrupted anonymization runs |
+| **Cross-platform** | macOS (ARM64 & Intel), Windows, and Linux |
+
+---
 
 ## Downloads
 
-Download the latest release for your platform:
+Download the latest release for your platform from [GitHub Releases](https://github.com/fomoroller/dicom-anonymizer/releases):
 
-| Platform | Architecture | Download |
-|----------|--------------|----------|
-| macOS | Apple Silicon (M1/M2/M3) | [dicom-anonymizer-macos-arm64.zip](build/releases/dicom-anonymizer-macos-arm64.zip) |
-| macOS | Intel | [dicom-anonymizer-macos-amd64.zip](build/releases/dicom-anonymizer-macos-amd64.zip) |
-| Windows | 64-bit | [dicom-anonymizer-windows-amd64.zip](build/releases/dicom-anonymizer-windows-amd64.zip) |
-| Linux | 64-bit | [dicom-anonymizer-linux-amd64.tar.xz](build/releases/dicom-anonymizer-linux-amd64.tar.xz) |
+| Platform | Architecture | File |
+|----------|--------------|------|
+| macOS | Apple Silicon (M1/M2/M3) | `dicom-anonymizer-macos-arm64.zip` |
+| macOS | Intel | `dicom-anonymizer-macos-amd64.zip` |
+| Windows | 64-bit | `dicom-anonymizer-windows-amd64.zip` |
+| Linux | 64-bit | `dicom-anonymizer-linux-amd64.tar.xz` |
 
 ## Requirements
 
@@ -76,90 +98,95 @@ Simply run the application without arguments to launch the graphical interface.
 
 Run from the command line for automation and scripting.
 
-#### Important: Secret Key & Mapping File Security
-
-The secret key (`-k`) and mapping file are **critical** for consistent patient anonymization:
-
-- **You MUST use the same key** when processing different modalities (CT, MRI, Ultrasound, X-Ray) for the same patients
-- The key ensures patient "John Smith" receives the **same anonymous ID** (e.g., `ANON-000001`) across ALL imaging studies
-- If you lose the key, you **cannot maintain patient ID consistency**
-- **Save your key securely** - store it alongside your mapping file
-
-⚠️ **SECURITY WARNING - DO NOT SHARE:**
-| File | Risk if shared |
-|------|----------------|
-| Secret Key | Allows re-generation of patient ID mappings |
-| `patient_mapping.json` | Contains direct links between real and anonymous IDs - **enables patient re-identification** |
-
-**Only share the anonymized DICOM files** in the `anonymized/` output folder.
-
-#### Workflow: Processing Multiple Modalities
+#### Basic Usage
 
 ```bash
-# Step 1: Dry run to generate and preview (note the generated key)
-./dicom-anonymizer -i /data/CT_Scans -n
-# Output shows: Key: a1b2c3d4e5f6g7h8...
-# SAVE THIS KEY!
-
-# Step 2: Process CT scans with your key
-./dicom-anonymizer -i /data/CT_Scans -k a1b2c3d4e5f6g7h8
-
-# Step 3: Process MRI scans with the SAME key
-./dicom-anonymizer -i /data/MRI_Scans -k a1b2c3d4e5f6g7h8
-
-# Step 4: Process Ultrasound with the SAME key
-./dicom-anonymizer -i /data/Ultrasound -k a1b2c3d4e5f6g7h8
-
-# Result: Patient "John Smith" has the same ANON-XXXXXX ID across all modalities
+# Anonymize all DICOM files in a folder (all modalities, recursive)
+./dicom-anonymizer -i /path/to/dicoms -k YOUR_SECRET_KEY
 ```
 
-#### CLI Flags
+That's it! With just `-i` (input folder) and `-k` (secret key), the tool will:
+- ✅ Search all subdirectories
+- ✅ Process all modalities (CT, MRI, X-Ray, Ultrasound)
+- ✅ Apply 75px redaction to ultrasound images
+- ✅ Save mapping to `patient_mapping.json` in parent folder
+- ✅ Output anonymized files to `{input}/anonymized/`
+
+#### Recommended Workflow
+
+```bash
+# Step 1: Do a dry run first to preview and get a secret key
+./dicom-anonymizer -i /path/to/dicoms -n
+
+# Step 2: SAVE the generated key shown in output!
+# Step 3: Run with your saved key
+./dicom-anonymizer -i /path/to/dicoms -k YOUR_SAVED_KEY
+```
+
+#### Processing Multiple Modalities (Same Patients)
+
+Use the **same secret key** for all modalities to maintain consistent patient IDs:
+
+```bash
+# Process CT scans
+./dicom-anonymizer -i /data/CT_Scans -k a1b2c3d4e5f6g7h8
+
+# Process MRI scans with SAME key
+./dicom-anonymizer -i /data/MRI_Scans -k a1b2c3d4e5f6g7h8
+
+# Process Ultrasound with SAME key
+./dicom-anonymizer -i /data/Ultrasound -k a1b2c3d4e5f6g7h8
+
+# Result: "John Smith" → ANON-000001 across ALL modalities
+```
+
+#### ⚠️ Security: Keep These Secret
+
+| Item | Why it's sensitive |
+|------|-------------------|
+| **Secret Key** | Required to maintain consistent patient IDs |
+| **patient_mapping.json** | Contains original ↔ anonymous ID links - **enables re-identification** |
+
+**Only share the anonymized files** in the `anonymized/` folder. Never share the key or mapping file.
+
+#### CLI Flags Reference
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--input` | `-i` | (required) | Input folder containing DICOM files |
-| `--key` | `-k` | auto-generate | **Secret key for pseudonymization (SAVE THIS!)** |
-| `--mapping` | `-m` | `{parent}/patient_mapping.json` | Patient mapping file path |
-| `--redact-rows` | | 75 | Rows to redact from ultrasound images |
-| `--recursive` | `-r` | true | Search subdirectories |
-| `--retry` | | false | Retry previously failed files |
-| `--metadata` | | true | Process CT/MRI/X-Ray (metadata only) |
-| `--ultrasound` | | true | Process ultrasound (metadata + pixel redaction) |
-| `--dry-run` | `-n` | false | Preview only, no files modified |
-| `--help` | `-h` | | Show help message |
+| `--key` | `-k` | auto-generate | Secret key (SAVE THIS!) |
+| `--mapping` | `-m` | `{parent}/patient_mapping.json` | Mapping file location |
+| `--redact-rows` | | `75` | Pixels to redact from ultrasound top |
+| `--recursive` | `-r` | `true` | Search subdirectories |
+| `--retry` | | `false` | Retry previously failed files |
+| `--metadata` | | `true` | Process CT/MRI/X-Ray |
+| `--ultrasound` | | `true` | Process ultrasound with redaction |
+| `--dry-run` | `-n` | `false` | Preview only, no changes |
+| `--help` | `-h` | | Show help |
 
-#### CLI Examples
+#### Advanced Examples
 
 ```bash
-# Always do a dry run first
-./dicom-anonymizer -i /path/to/dicoms -k YOUR_SECRET_KEY -n
+# Process only CT/MRI/X-Ray (skip ultrasound)
+./dicom-anonymizer -i /path/to/dicoms -k KEY --ultrasound=false
 
-# Process all files
-./dicom-anonymizer -i /path/to/dicoms -k YOUR_SECRET_KEY
-
-# Process only CT/MRI/X-Ray (skip ultrasound pixel redaction)
-./dicom-anonymizer -i /path/to/dicoms -k YOUR_SECRET_KEY --ultrasound=false
-
-# Process only ultrasound with custom redaction height
-./dicom-anonymizer -i /path/to/dicoms -k YOUR_SECRET_KEY --metadata=false --redact-rows=100
+# Process only ultrasound with custom redaction
+./dicom-anonymizer -i /path/to/dicoms -k KEY --metadata=false --redact-rows=100
 
 # Retry failed files from previous run
-./dicom-anonymizer -i /path/to/dicoms -k YOUR_SECRET_KEY --retry
+./dicom-anonymizer -i /path/to/dicoms -k KEY --retry
 
-# Use custom mapping file location
-./dicom-anonymizer -i /path/to/dicoms -k YOUR_SECRET_KEY -m /secure/patient_mappings.json
-
-# Show full help
-./dicom-anonymizer -h
+# Custom mapping file location
+./dicom-anonymizer -i /path/to/dicoms -k KEY -m /secure/mappings.json
 ```
 
-#### CLI Output
+#### CLI Output Example
 
 ```
 DICOM Anonymizer
 ==================================================
-Input:     /path/to/dicoms
-Mapping:   /path/to/patient_mapping.json
+Input:     /data/CT_Scans
+Mapping:   /data/patient_mapping.json
 Key:       a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
 
 WARNING: Secret key was auto-generated!
@@ -175,8 +202,8 @@ Options:   Recursive
 ==================================================
 Complete! 150 succeeded, 4 failed, 2 skipped
 Patients:  12 total (10 by Name+DOB, 2 by PatientID)
-Output:    /path/to/dicoms/anonymized
-Mapping:   /path/to/patient_mapping.json
+Output:    /data/CT_Scans/anonymized
+Mapping:   /data/patient_mapping.json
 ```
 
 ---
@@ -289,6 +316,14 @@ dicom-anonymizer/
 └── Makefile
 ```
 
+---
+
 ## License
 
 MIT License
+
+---
+
+## Support
+
+For issues and feature requests, please use [GitHub Issues](https://github.com/fomoroller/dicom-anonymizer/issues).
