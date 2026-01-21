@@ -1,0 +1,6 @@
+[Details]
+Icon = "Icon.png"
+Name = "DICOM Anonymizer"
+ID = "com.neurallabs.dicom-anonymizer"
+Version = "1.0.0"
+Build = 1

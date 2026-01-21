@@ -1,0 +1,21 @@
+# Build artifacts
+/build/
+/fyne-cross/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test output
+*.test
+coverage.out
+
+# Temporary files
+*.tmp
+*.log
